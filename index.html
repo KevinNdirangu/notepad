@@ -1,190 +1,194 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notebook</title>
-    <style>
-        /* General Styles */
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            color: #333;
-            margin: 0;
-            padding: 0;
-            text-align: center;
-            transition: 0.3s;
-        }
-        .container {
-            max-width: 600px;
-            margin: 30px auto;
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            transition: 0.3s;
-        }
-        h1 {
-            color: #333;
-        }
-        textarea {
-            width: 100%;
-            height: 200px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            resize: none;
-            font-size: 16px;
-        }
-        button {
-            background: #007BFF;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            margin: 5px;
-            cursor: pointer;
-            border-radius: 5px;
-        }
-        button:hover {
-            background: #0056b3;
-        }
-        #notesList {
-            text-align: left;
-            margin-top: 20px;
-        }
-        .note {
-            background: #f8f9fa;
-            padding: 10px;
-            border: 1px solid #ddd;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .delete-btn {
-            background: red;
-            color: white;
-            border: none;
-            padding: 5px;
-            cursor: pointer;
-            border-radius: 3px;
-        }
-        .delete-btn:hover {
-            background: darkred;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notebook App</title>
+  <style>
+    :root {
+      --bg-color: #1e1e1e;
+      --text-color: white;
+      --note-bg: #2a2a2a;
+    }
 
-        /* Dark Mode Styles */
-        .dark-mode {
-            background-color: #222;
-            color: white;
-        }
-        .dark-mode .container {
-            background: #333;
-            color: white;
-            box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
-        }
-        .dark-mode textarea {
-            background: #444;
-            color: white;
-            border: 1px solid #666;
-        }
-        .dark-mode .note {
-            background: #555;
-            border: 1px solid #777;
-        }
-    </style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      background-color: #121212;
+      border-bottom: 1px solid #333;
+    }
+
+    main {
+      display: flex;
+      padding: 1rem;
+    }
+
+    section {
+      flex: 1;
+      margin: 0 1rem;
+    }
+
+    #note-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .note {
+      background-color: var(--note-bg);
+      padding: 1rem;
+      border-radius: 10px;
+      width: 150px;
+      text-align: center;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+      position: relative;
+    }
+
+    button {
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 5px;
+      background-color: #333;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #555;
+    }
+
+    .lock {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+
+    .locked {
+      background-color: #444;
+      pointer-events: none;
+    }
+
+    .edit {
+      position: absolute;
+      bottom: 5px;
+      right: 5px;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
+  <header>
+    <h1>Notebook</h1>
+    <button id="dark-mode-toggle">Toggle Dark Mode</button>
+  </header>
+  <main>
+    <section id="notes">
+      <h2>Notes</h2>
+      <div id="note-container"></div>
+      <button id="add-note">Add Note</button>
+    </section>
+  </main>
+  <script>
+    const noteContainer = document.getElementById('note-container');
+    const addNoteBtn = document.getElementById('add-note');
+    const darkModeToggle = document.getElementById('dark-mode-toggle');
 
-    <div class="container">
-        <h1>My Notebook</h1>
-        <textarea id="noteInput" placeholder="Write your note here..."></textarea>
-        <br>
-        <button onclick="saveNote()">Save Note</button>
-        <button onclick="exportNotes()">Export Notes</button>
-        <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
-       
-        <div id="notesList"></div>
-    </div>
+    // Load notes from localStorage
+    const loadNotes = () => {
+      const notes = JSON.parse(localStorage.getItem('notes')) || [];
+      notes.forEach(note => {
+        createNoteElement(note.id, note.content, note.locked);
+      });
+    };
 
-    <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            loadNotes();
-            checkDarkMode();
+    // Save notes to localStorage
+    const saveNotes = () => {
+      const notes = [];
+      document.querySelectorAll('.note').forEach(note => {
+        notes.push({
+          id: note.dataset.id,
+          content: note.querySelector('textarea').value,
+          locked: note.classList.contains('locked')
         });
+      });
+      localStorage.setItem('notes', JSON.stringify(notes));
+    };
 
-        function saveNote() {
-            let noteText = document.getElementById("noteInput").value;
-            if (noteText.trim() === "") {
-                alert("Please enter some text before saving!");
-                return;
-            }
+    // Create a new note element
+    const createNoteElement = (id, content = '', locked = false) => {
+      const note = document.createElement('div');
+      note.classList.add('note');
+      note.dataset.id = id;
 
-            let notes = JSON.parse(localStorage.getItem("notes")) || [];
-            notes.push(noteText);
-            localStorage.setItem("notes", JSON.stringify(notes));
-            document.getElementById("noteInput").value = "";
-            loadNotes();
+      const textarea = document.createElement('textarea');
+      textarea.value = content;
+      textarea.readOnly = locked;
+      note.appendChild(textarea);
+
+      // Lock Button
+      const lockBtn = document.createElement('button');
+      lockBtn.innerHTML = locked ? '🔒' : '🔓';
+      lockBtn.classList.add('lock');
+      lockBtn.addEventListener('click', () => {
+        note.classList.toggle('locked');
+        textarea.readOnly = !textarea.readOnly;
+        lockBtn.innerHTML = textarea.readOnly ? '🔒' : '🔓';
+        saveNotes();
+      });
+      note.appendChild(lockBtn);
+
+      // Edit Button
+      const editBtn = document.createElement('button');
+      editBtn.innerHTML = '✏️';
+      editBtn.classList.add('edit');
+      editBtn.addEventListener('click', () => {
+        if (!note.classList.contains('locked')) {
+          textarea.focus();
         }
+      });
+      note.appendChild(editBtn);
 
-        function loadNotes() {
-            let notesList = document.getElementById("notesList");
-            notesList.innerHTML = "";
-            let notes = JSON.parse(localStorage.getItem("notes")) || [];
+      noteContainer.appendChild(note);
+      saveNotes();
+    };
 
-            notes.forEach((note, index) => {
-                let noteElement = document.createElement("div");
-                noteElement.classList.add("note");
-                noteElement.innerHTML = `
-                    <span>${parseMarkdown(note)}</span>
-                    <button class="delete-btn" onclick="deleteNote(${index})">Delete</button>
-                `;
-                notesList.appendChild(noteElement);
-            });
-        }
+    // Add a new note
+    addNoteBtn.addEventListener('click', () => {
+      const id = Date.now().toString();
+      createNoteElement(id);
+    });
 
-        function deleteNote(index) {
-            let notes = JSON.parse(localStorage.getItem("notes")) || [];
-            notes.splice(index, 1);
-            localStorage.setItem("notes", JSON.stringify(notes));
-            loadNotes();
-        }
+    // Toggle Dark Mode
+    darkModeToggle.addEventListener('click', () => {
+      document.body.classList.toggle('light-mode');
+      if (document.body.classList.contains('light-mode')) {
+        document.documentElement.style.setProperty('--bg-color', '#ffffff');
+        document.documentElement.style.setProperty('--text-color', '#000000');
+        document.documentElement.style.setProperty('--note-bg', '#f0f0f0');
+      } else {
+        document.documentElement.style.setProperty('--bg-color', '#1e1e1e');
+        document.documentElement.style.setProperty('--text-color', '#ffffff');
+        document.documentElement.style.setProperty('--note-bg', '#2a2a2a');
+      }
+    });
 
-        function toggleDarkMode() {
-            document.body.classList.toggle("dark-mode");
-            localStorage.setItem("darkMode", document.body.classList.contains("dark-mode") ? "enabled" : "disabled");
-        }
-
-        function checkDarkMode() {
-            if (localStorage.getItem("darkMode") === "enabled") {
-                document.body.classList.add("dark-mode");
-            }
-        }
-
-        function exportNotes() {
-            let notes = JSON.parse(localStorage.getItem("notes")) || [];
-            if (notes.length === 0) {
-                alert("No notes to export!");
-                return;
-            }
-
-            let blob = new Blob([notes.join("\n\n")], { type: "text/plain" });
-            let a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = "MyNotes.txt";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        }
-
-        function parseMarkdown(text) {
-            return text
-                .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>") // Bold (**text**)
-                .replace(/\*(.*?)\*/g, "<i>$1</i>") // Italics (*text*)
-                .replace(/`(.*?)`/g, "<code>$1</code>"); // Inline Code (`text`)
-        }
-    </script>
-
+    // Load notes on page load
+    window.addEventListener('load', loadNotes);
+  </script>
 </body>
 </html>
