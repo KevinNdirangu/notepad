@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secure Notebook</title>
+  <style>
+    :root {
+      --bg-color: #1e1e1e;
+      --text-color: #fff;
+      --note-bg: linear-gradient(145deg, #4c4c4c, #3a3a3a);
+      --locked-bg: rgba(0, 0, 0, 0.8);
+      --modal-title-bg: #333;
+      --modal-body-bg: #282828;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Arial', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    body.light-mode {
+      --bg-color: #f8f8f8;
+      --text-color: #333;
+      --note-bg: linear-gradient(145deg, #eee, #ddd);
+      --locked-bg: rgba(255, 255, 255, 0.8);
+      --modal-title-bg: #ddd;
+      --modal-body-bg: #eee;
+    }
+
+    /* ... (rest of the CSS styles remain the same as in the previous corrected response) ... */
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      background-color: #121212;
+      border-bottom: 1px solid #333;
+    }
+
+    header h1 {
+      margin: 0;
+    }
+
+    main {
+      padding: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .note {
+      position: relative;
+      background: var(--note-bg);
+      color: var(--text-color);
+      border-radius: 10px;
+      padding: 1rem;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+      width: 200px;
+      height: 200px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .note-title {
+      width: calc(100% - 2rem);
+      margin: -1rem 0 .5rem 0;
+      padding: .5rem;
+      border: none;
+      background: none;
+      color: var(--text-color);
+      font-size: 16px;
+      outline: none;
+    }
+
+    .note.locked {
+      background: var(--locked-bg);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .note.locked textarea {
+      display: none;
+    }
+
+    .icons {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-top: 5px;
+    }
+
+    .icon {
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .icon:hover {
+      color: #ff6347;
+    }
+
+    textarea {
+      width: 100%;
+      height: calc(100% - 3rem);
+      border: none;
+      background: none;
+      color: var(--text-color);
+      resize: none;
+      outline: none;
+      font-size: 14px;
+    }
+
+    textarea:read-only {
+      opacity: 0.7; /* Visual feedback for read-only */
+      cursor: default;
+    }
+
+    button {
+      background: #333;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #555;
+    }
+
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.5); /* Slightly darker backdrop */
+    }
+
+    .modal-content {
+      background-color: var(--bg-color);
+      margin: 8% auto; /* Adjusted margin */
+      padding: 20px;
+      border: 1px solid #555; /* Lighter border */
+      width: 80%;
+      max-width: 600px;
+      border-radius: 10px;
+      color: var(--text-color);
+      position: relative;
+    }
+
+    .modal-title {
+      width: calc(100% - 2rem);
+      margin: -1rem 0 .5rem 0;
+      padding: .5rem;
+      border: none;
+      background: none;
+      color: var(--text-color);
+      font-size: 16px;
+      outline: none;
+      background-color: #121212;
+    }
+
+    .modal-content textarea {
+      height: calc(75vh - 2rem); /* Adjusted height to accommodate title */
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 20px;
+      cursor: pointer;
+      color: var(--text-color);
+    }
+
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Secure Notebook</h1>
+    <div>
+      <span id="theme-toggle">☀️</span>
+    </div>
+    <button id="add-note">Add Note</button>
+  </header>
+  <main id="note-container"></main>
+
+  <div id="noteModal" class="modal">
+    <div class="modal-content">
+      <span class="modal-close">&times;</span>
+      <input type="text" id="modal-title" class="modal-title" placeholder="Note Title">
+      <textarea id="modal-textarea"></textarea>
+      <button id="modal-save">Save</button>
+    </div>
+  </div>
+
+  <script>
+    const noteContainer = document.getElementById('note-container');
+    const addNoteBtn = document.getElementById('add-note');
+    const noteModal = document.getElementById('noteModal');
+    const modalTextarea = document.getElementById('modal-textarea');
+    const modalTitle = document.getElementById('modal-title');
+    const modalClose = document.querySelector('.modal-close');
+    const modalSave = document.getElementById('modal-save');
+    const themeToggle = document.getElementById('theme-toggle');
+    const body = document.body;
+
+    let notes = JSON.parse(localStorage.getItem('notes')) || [];
+    let noteCounter = notes.length;
+
+    const loadNotes = () => {
+      notes.forEach(note => createNoteElement(note.id, note.content, note.locked, note.title));
+    };
+
+    const saveNotes = () => {
+      const notesToSave = [];
+      document.querySelectorAll('.note').forEach(note => {
+        notesToSave.push({
+          id: note.dataset.id,
+          content: note.querySelector('textarea')?.value || "",
+          locked: note.classList.contains('locked'),
+          title: note.querySelector('.note-title')?.value || ""
+        });
+      });
+      localStorage.setItem('notes', JSON.stringify(notesToSave));
+    };
+
+    const createNoteElement = (id, content = '', locked = false, title = '') => {
+      const note = document.createElement('div');
+      note.classList.add('note');
+      note.dataset.id = id;
+
+      const titleInput = document.createElement('input');
+      titleInput.classList.add('note-title');
+      titleInput.value = title;
+      titleInput.placeholder = 'Note Title (Optional)';
+      titleInput.readOnly = locked;
+      note.appendChild(titleInput);
+
+      const textarea = document.createElement('textarea');
+      textarea.value = content;
+      textarea.readOnly = locked;
+      note.appendChild(textarea);
+
+      const icons = document.createElement('div');
+      icons.classList.add('icons');
+
+      const lockIcon = document.createElement('span');
+      lockIcon.innerHTML = locked ? '🔐' : '🔓';
+      lockIcon.classList.add('icon');
+      lockIcon.addEventListener('click', () => {
+        const password = prompt("Enter password:");
+
+        if (password) {
+          if (note.classList.contains('locked')) {
+            if (password === "1234") {
+              note.classList.remove('locked');
+              lockIcon.innerHTML = '🔓';
+              titleInput.readOnly = false;
+              textarea.readOnly = false;
+              saveNotes();
+            } else {
+              alert('Incorrect password!');
+            }
+          } else {
+            note.classList.add('locked');
+            lockIcon.innerHTML = '🔐';
+            titleInput.readOnly = true;
+            textarea.readOnly = true;
+            saveNotes();
+          }
+        }
+      });
+      icons.appendChild(lockIcon);
+
+      const editIcon = document.createElement('span');
+      editIcon.innerHTML = '✏️';
+      editIcon.classList.add('icon');
+      editIcon.addEventListener('click', () => {
+        if (!note.classList.contains('locked')) {
+          modalTextarea.value = content;
+          modalTitle.value = title;
+          noteModal.style.display = "block";
+          modalTextarea.focus();
+          modalTextarea.dataset.noteId = id;
+        }
+      });
+      icons.appendChild(editIcon);
+
+      const deleteIcon = document.createElement('span');
+      deleteIcon.innerHTML = '🗑️';
+      deleteIcon.classList.add('icon');
+      deleteIcon.addEventListener('click', () => {
+        note.remove();
+        saveNotes();
+      });
+      icons.appendChild(deleteIcon);
+
+      note.appendChild(icons);
+      noteContainer.appendChild(note);
+      return note;
+    };
+
+    addNoteBtn.addEventListener('click', () => {
+      const newId = noteCounter;
+      createNoteElement(newId, '', false, '');
+      noteCounter++;
+      saveNotes();
+    });
+
+    modalClose.addEventListener('click', () => {
+      noteModal.style.display = "none";
+    });
+
+    modalSave.addEventListener('click', () => {
+      const noteId = modalTextarea.dataset.noteId;
+      const note = document.querySelector(`.note[data-id="${noteId}"]`);
+      if (note && !note.classList.contains('locked')) {
+        note.querySelector('textarea').value = modalTextarea.value;
+        note.querySelector('.note-title').value = modalTitle.value;
+        noteModal.style.display = "none";
+        saveNotes();
+      }
+    });
+
+    loadNotes();
+
+    themeToggle.addEventListener('click', () => {
+      body.classList.toggle('light-mode');
+      localStorage.setItem('theme', body.classList.contains('light-mode') ? 'light' : 'dark');
+      });
+
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+      body.classList.add('light-mode');
+      themeToggle.textContent = '🌙';
+    }
+  </script>
+</body>
+</html>
